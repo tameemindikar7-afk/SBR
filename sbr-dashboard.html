@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SBR-CORE | Reactor Monitoring Console</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0a161e;--pn:#102430;--fp:#132a37;--bx:#1a3646;--dis:#2a4352;--bl:#274255;--bm:#2f4d60;--bd:#3b6078;--t1:#e8f1f5;--t2:#b4c8d3;--t3:#8aa3b2;--ok:#2dd4bf;--stop:#5b7080;--a1:#ff5d6c;--a2:#f5b942;--a3:#ff9248;--wat:#38bdf8;--mono:ui-monospace,'Cascadia Mono',Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--t1);font:14px/1.45 'Segoe UI',system-ui,-apple-system,Roboto,sans-serif}
+body{display:flex;flex-direction:column;overflow:hidden}
+.mono{font-family:var(--mono)}.sm{font-size:12px}.xs{font-size:11px}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:6px}
+.hdr{background:var(--pn);border-bottom:1px solid var(--bm);min-height:60px;display:flex;justify-content:space-between;align-items:center;padding:6px 20px;flex-shrink:0;flex-wrap:wrap;gap:8px}
+.hs{display:flex;align-items:center;gap:22px}
+.brand{display:flex;flex-direction:column;border-right:1px solid var(--bm);padding-right:20px}.brand b{font-size:19px;letter-spacing:.5px;color:var(--ok);line-height:1.1}.brand span{font-size:11px;color:var(--t3)}
+.hb{display:flex;flex-direction:column;justify-content:center}.hb.sep{border-left:1px solid var(--bm);padding-left:20px}.hb b{font-weight:600}
+.hl{font-size:11px;color:var(--t3);margin-bottom:1px}
+.lnk{display:flex;align-items:center;gap:8px;padding:3px 10px;background:var(--bx);border-radius:999px}
+.lnk i{width:9px;height:9px;border-radius:50%;background:var(--ok)}.lnk i.warn{background:var(--a2)}.lnk i.bad{background:var(--a1)}
+.estop{background:var(--a1);color:#2a0409;border:0;border-radius:8px;font-weight:700;font-size:13px;font-family:inherit;padding:10px 20px;cursor:pointer}.estop.on{background:var(--stop);color:#fff}
+.nav{display:flex;padding:12px 20px 4px;gap:8px;flex-shrink:0;overflow-x:auto}
+.tab{padding:7px 18px;border:1px solid var(--bm);border-radius:999px;color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.tab:hover{background:var(--pn)}.tab.on{background:var(--ok);border-color:var(--ok);color:#04211f}
+.view{flex:1;min-height:0;padding:12px 20px 20px;gap:14px;display:none;overflow:auto}.view.on{display:grid}
+#v-core{grid-template-columns:minmax(290px,1.05fr) minmax(360px,1.5fr) minmax(270px,1fr)}
+#v-alarms{grid-template-rows:auto 1fr}#v-maint{grid-template-columns:1fr 1fr;grid-auto-rows:min-content}
+.col{display:flex;flex-direction:column;gap:14px;min-height:0}
+.pn{background:var(--pn);border:1px solid var(--bm);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.pnh{padding:12px 16px 4px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pt{font-size:14px;font-weight:600}
+.pb{padding:10px 16px 16px;flex-grow:1;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.cw{padding:0 8px 8px;position:relative;min-height:230px;overflow:hidden}
+.box{background:var(--bx);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px}.box.g{background:transparent;border:1px dashed var(--bm)}
+.lbl{font-size:12px;color:var(--t3);display:flex;justify-content:space-between;align-items:center}
+.val{display:flex;align-items:baseline;gap:5px}.v{font:600 22px var(--mono)}.u{font-size:12px;color:var(--t3)}.pvx .v{font-size:30px}
+.row{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.btn{background:var(--bx);border:1px solid var(--bd);color:var(--t1);padding:8px 14px;border-radius:8px;font-weight:600;font-size:12px;font-family:inherit;cursor:pointer}
+.btn:hover{background:var(--bd)}.btn.p{background:var(--ok);border-color:var(--ok);color:#04211f}.btn:disabled{background:transparent;border-color:var(--bm);color:var(--t3);cursor:not-allowed}.btn.w{width:100%}
+.tog{display:inline-flex;background:var(--bg);border-radius:999px;padding:2px}.tog span{padding:3px 12px;font-size:11px;font-weight:600;color:var(--t3);cursor:pointer;border-radius:999px}.tog span.sel{background:var(--bd);color:var(--t1)}
+input,select{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--t1);font-size:13px;font-family:inherit;outline:none}
+input:focus,select:focus,.btn:focus-visible,.tab:focus-visible{outline:2px solid var(--ok);outline-offset:1px}
+.trk{height:8px;background:var(--bg);border-radius:4px;position:relative;margin-top:8px}
+.fil{position:absolute;left:0;top:0;height:100%;border-radius:4px;background:var(--ok);width:0;z-index:1}.fil.w{background:var(--a2)}.fil.a{background:var(--a1)}
+.tgt{position:absolute;top:-2px;height:12px;background:rgba(45,212,191,.14);border:1px solid rgba(45,212,191,.45);border-radius:4px;z-index:0}
+.mk{position:absolute;top:-3px;width:2px;height:14px;z-index:3}.mk.w{background:var(--a2)}.mk.a{background:var(--a1)}
+.chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--bd);color:var(--t2)}
+.chip[data-s="0"]{background:rgba(45,212,191,.16);color:var(--ok)}.chip[data-s="1"]{background:var(--a1);color:#2a0409}.chip[data-s="2"]{background:var(--a2);color:#2a1c00}
+.l1,.l2,.l3{display:inline-flex;align-items:center;justify-content:center;font:700 10px Arial}
+.l1{width:16px;height:16px;background:var(--a1);border-radius:3px;color:#2a0409}
+.l2{width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:18px solid var(--a2);position:relative}.l2::after{content:'2';position:absolute;top:4px;left:-3px;font-size:10px;color:#000}
+.l3{width:18px;height:18px;border-radius:50%;background:var(--a3);color:#000}
+.bn{border-radius:12px;padding:12px 14px;flex-shrink:0;border:1px solid transparent}.bn.ok{background:var(--pn);border-color:var(--bm);color:var(--t2)}
+.bn.a1{background:var(--a1);color:#2a0409}.bn.a1 .l1{background:#2a0409;color:#fff}.bn.a2{background:var(--a2);color:#2a1c00}.bn.a3{background:var(--a3);color:#2a1200}
+.bn .btn{background:rgba(0,0,0,.25);border-color:transparent;color:inherit}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}.tbl th,.tbl td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--bl)}.tbl th{background:var(--pn);color:var(--t3);font-weight:600;position:sticky;top:0}.tbl tr.alt td{background:rgba(255,255,255,.03)}
+.tank{width:46%;max-width:200px;min-width:120px;min-height:260px}
+.big{font:600 54px/1 var(--mono);color:var(--wat)}.big small{font-size:20px;color:var(--t3);margin-left:4px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.phs{display:grid;grid-template-columns:1fr 1fr;gap:10px}.phb{background:var(--bx);border-radius:10px;padding:10px 12px}.phb.on{background:var(--ok);color:#04211f}.phb.on .lbl{color:#04332e}.phb .st{font-size:11px;margin-top:4px}
+.modal{position:fixed;inset:0;background:rgba(4,10,14,.78);display:none;align-items:center;justify-content:center;z-index:1000}
+.dlg{background:var(--pn);border:1px solid var(--bd);border-radius:14px;width:100%;max-width:400px;padding:20px;display:flex;flex-direction:column;gap:10px}.dlg .dh{font-weight:600;font-size:16px}.dlg label{font-size:12px;color:var(--t3)}
+@media(max-width:1000px){body{overflow:auto;height:auto}.view,.view.on{overflow:visible}.view.on{grid-template-columns:1fr!important}.hs{flex-wrap:wrap;gap:10px}}
+</style>
+</head>
+<body>
+<header class="hdr">
+ <div class="hs">
+  <div class="brand"><b>SBR-CORE</b><span>Lab-scale SBR console</span></div>
+  <div class="hb"><span class="hl">Facility Node</span><b>BLR-INT-001</b></div>
+  <div class="hb"><span class="hl">Process ID</span><b>SBR-8492</b></div>
+  <div class="hb"><span class="hl">Sensor Link</span><div class="lnk"><i id="lk-dot" class="bad"></i><b id="lk-txt" class="sm">NO DATA</b></div></div>
+ </div>
+ <div class="hs">
+  <div class="hb" style="text-align:right"><span class="hl">Last Update</span><b id="h-age" class="mono">--</b></div>
+  <div class="hb sep"><span class="hl">Active Operator</span><b id="op">OP-LOCAL</b></div>
+  <button class="btn" id="logout" style="display:none">LOGOUT</button>
+  <button class="estop" id="halt">SYSTEM HALT</button>
+ </div>
+</header>
+<nav class="nav" id="nav">
+ <div class="tab on" data-v="core">Core Kinetics</div><div class="tab" data-v="alarms">Alarm Ledger</div><div class="tab" data-v="maint">Maintenance</div>
+</nav>
+
+<!-- CORE KINETICS -->
+<section class="view on" id="v-core">
+ <div class="col">
+  <div class="pn" style="flex:1.5"><div class="pnh"><span class="pt">Reactor level · R-101</span><b class="chip" id="st-level">NO DATA</b></div>
+   <div class="pb" style="flex-direction:row;gap:16px">
+    <div class="tank" id="tank"></div>
+    <div class="col" style="flex:1;justify-content:space-between;gap:10px">
+     <div><div class="big"><span id="tank-lvl">--</span><small>%</small></div><div class="sm" style="color:var(--t3);margin-top:6px"><b id="tank-vol" style="color:var(--t1)">--</b> L of <span id="tank-cap"></span> L</div></div>
+     <div class="box"><span class="lbl">Direction</span><b id="lvl-dir">--</b></div>
+     <div class="two"><div class="box"><span class="lbl">Session low</span><b class="mono" id="lvl-min">--</b></div><div class="box"><span class="lbl">Session high</span><b class="mono" id="lvl-max">--</b></div></div>
+     <div class="box g"><span class="lbl">Device</span><b class="mono sm" id="dev-id">--</b></div>
+    </div></div></div>
+  <div class="pn" style="flex:1"><div class="pnh"><span class="pt">Batch sequence</span><b class="xs" id="cyc-txt">NO CYCLE DATA</b></div><div class="pb phs" id="phases"></div></div>
+ </div>
+ <div class="col">
+  <div class="pn"><div class="pnh"><span class="pt">Process variables</span><span class="xs"><b>LIVE FROM ESP32</b></span></div><div class="pb" id="pv-grid" style="display:grid;grid-template-columns:1fr 1fr"></div></div>
+  <div class="pn" style="flex:1"><div class="pnh"><span class="pt">Real-Time Trend</span><select id="live-sel"></select></div><div class="pb cw"><canvas id="c-live"></canvas></div></div>
+ </div>
+ <div class="col">
+  <div class="pn"><div class="pnh"><span class="pt">Equipment Control</span></div><div class="pb" id="eq"></div></div>
+  <div class="pn"><div class="pnh"><span class="pt">System Diagnostics</span></div><div class="pb" style="padding:0"><table class="tbl"><tbody>
+   <tr><td>Device ID</td><td class="mono"><b id="d-dev">--</b></td></tr><tr class="alt"><td>Link status</td><td class="mono"><b id="d-lnk">--</b></td></tr>
+   <tr><td>Last sample</td><td class="mono"><b id="d-last">--</b></td></tr><tr class="alt"><td>Samples received</td><td class="mono"><b id="d-n">0</b></td></tr></tbody></table></div></div>
+  <button class="btn w" id="btn-pair">PAIR HARDWARE (ESP32)</button>
+  <button class="btn w" id="btn-shift" style="background:var(--bd);color:#fff">DOWNLOAD SHIFT REPORT (CSV)</button>
+  <div class="bn ok" id="alm-bn"></div>
+ </div>
+</section>
+
+<!-- ALARM LEDGER -->
+<section class="view" id="v-alarms">
+ <div class="pn"><div class="pb" style="flex-direction:row;justify-content:space-between;align-items:center;background:var(--pn)">
+  <div class="row"><input id="lg-q" placeholder="Search tags or descriptions..." style="width:320px"><select id="lg-f"><option value="ALL">All Priorities</option><option value="1">Critical (L1)</option><option value="2">Warning (L2)</option><option value="3">System (L3)</option></select></div>
+  <button class="btn p" id="lg-exp">EXPORT LOG (CSV)</button></div></div>
+ <div class="pn"><div class="pnh"><span class="pt">Historical Alarm Records</span></div><div class="pb" style="padding:0"><table class="tbl"><thead><tr><th style="width:17%">Date/Time</th><th style="width:15%">Tag ID</th><th>Description</th><th style="width:9%;text-align:center">Priority</th><th style="width:14%">Acknowledged By</th><th style="width:11%">Ack Time</th></tr></thead><tbody id="lg-body"></tbody></table></div></div>
+</section>
+
+<!-- MAINTENANCE -->
+<section class="view" id="v-maint"></section>
+
+<!-- MODALS -->
+<div class="modal" id="m-login"><form class="dlg" id="lf"><div class="dh">Operator Login</div><label>EMAIL</label><input id="lg-e" type="email" required><label>PASSWORD</label><input id="lg-p" type="password" required><div class="xs" id="lg-err" style="color:var(--a1)"></div><button class="btn p" type="submit">SIGN IN</button></form></div>
+<div class="modal" id="m-pair"><div class="dlg"><div class="dh">ESP32 Hardware Pairing</div><label>TARGET DEVICE ID</label><input id="p-id" class="mono" placeholder="SBR-ESP-001"><label>OPERATOR AUTH PIN</label><input id="p-pin" type="password" class="mono"><div class="row"><button class="btn" id="p-cancel" style="flex:1">CANCEL</button><button class="btn p" id="p-ok" style="flex:1">AUTHORIZE &amp; CONNECT</button></div></div></div>
+
+<script>
+(function(){
+'use strict';
+/* ================= CONFIG — edit here ================= */
+const C={
+ FB:{apiKey:"AIzaSyA_cflBLHqk7L46KZ8mAy7RKYm995DU3vc",authDomain:"sbr-scada-platform.firebaseapp.com",databaseURL:"https://sbr-scada-platform-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"sbr-scada-platform",storageBucket:"sbr-scada-platform.firebasestorage.app",messagingSenderId:"1010717791850",appId:"1:1010717791850:web:9e0d872b95df14b8ad5c13"},
+ DEVICE:'SBR-ESP-001',        // data lives under devices/<DEVICE>/...
+ LOGIN:true,                  // false = no Firebase login screen
+ STALE:15000, OFFLINE:60000,  // ms without data -> STALE / OFFLINE
+ S:{ // sensors: ranges, target band, warning (L2) and alarm (L1) limits
+  ph:{label:'PH LEVEL',name:'pH',tag:'ALM-PH-101',unit:'pH',d:2,min:0,max:14,tgt:[6.5,8.5],warnLo:6.5,warnHi:8.5,alarmLo:6,alarmHi:9,col:'#2c5282'},
+  turbidity:{label:'TURBIDITY',name:'Turbidity',tag:'ALM-TURB-101',unit:'NTU',d:1,min:0,max:1000,tgt:[0,500],warnHi:600,alarmHi:800,col:'#4a4e51'},
+  tds:{label:'TDS',name:'TDS',tag:'ALM-TDS-101',unit:'ppm',d:0,min:0,max:1000,tgt:[0,700],warnHi:800,alarmHi:950,col:'#285e61'},
+  temperature:{label:'TEMPERATURE',name:'Temperature',tag:'ALM-TEMP-101',unit:'°C',d:1,min:0,max:50,tgt:[20,30],warnLo:15,warnHi:32,alarmLo:10,alarmHi:38,col:'#556b2f'}},
+ PHASES:[['FILL',15],['REACT',45],['SETTLE',30],['DECANT',20]],   // minutes
+ LEVEL:{name:'Level',tag:'ALM-LVL-101',min:0,max:100,warnLo:20,warnHi:85,alarmLo:10,alarmHi:95,cap:5}, // cap = reactor volume in litres
+ EQUIP:[{id:'blower1',name:'BLOWER 1 VFD',limit:5000},{id:'blower2',name:'BLOWER 2 VFD',limit:5000},{id:'decant',name:'DECANT VALVE V-103',limit:3000},{id:'pump1',name:'TRANSFER PUMP 1',limit:5000}]
+};
+/* ================= HELPERS ================= */
+const $=id=>document.getElementById(id), S=C.S, keys=Object.keys(S);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(v,d)=>v==null||isNaN(v)?'--':(+v).toFixed(d);
+const hms=t=>new Date(t).toLocaleTimeString('en-GB');
+const dts=t=>new Date(t).toLocaleDateString('en-CA')+' '+hms(t);
+const mmss=s=>{s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const dur=ms=>{const s=Math.round(ms/1000);return Math.floor(s/60)+'m '+s%60+'s'};
+const ind=n=>n==1?'<div class="l1">1</div>':n==2?'<div class="l2"></div>':'<div class="l3">3</div>';
+const ms=t=>{t=+t;return t&&t<1e11?t*1000:t};
+function dl(name,rows){const b=new Blob([rows.map(r=>r.map(c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"').join(',')).join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove()}
+/* ================= STATE ================= */
+let db=null,auth=null,op='OP-LOCAL',dev=localStorage.getItem('sbrDev')||C.DEVICE,subs=[],started=false;
+let buf={},lvl={},dirs={},shared={},recs={},st={},ctl={},mnt={},lastTs=0,count=0,offAl=false,lvBuf=[],lvMin=100,lvMax=0;
+keys.forEach(k=>buf[k]=[]);
+try{firebase.initializeApp(C.FB);db=firebase.database();auth=firebase.auth()}catch(e){console.error('Firebase init failed',e)}
+const P=()=>{const b='devices/'+dev+'/';return{live:b+'live',st:b+'status',ctl:b+'control',mnt:b+'maintenance',alm:b+'alarms',als:b+'alarmState'}};
+/* ================= BUILD STATIC UI ================= */
+$('pv-grid').innerHTML=keys.map(k=>{const s=S[k],p=x=>(x-s.min)/(s.max-s.min)*100,m=(x,c)=>x==null?'':`<div class="mk ${c}" style="left:${p(x)}%"></div>`;
+ return `<div class="box pvx"><span class="lbl">${s.label}<b class="chip" id="st-${k}">--</b></span><div class="val"><span class="v" id="pv-${k}">--</span><span class="u">${s.unit}</span></div><div class="trk"><div class="tgt" style="left:${p(s.tgt[0])}%;width:${p(s.tgt[1])-p(s.tgt[0])}%"></div><div class="fil" id="bar-${k}"></div>${m(s.warnLo,'w')}${m(s.warnHi,'w')}${m(s.alarmLo,'a')}${m(s.alarmHi,'a')}</div></div>`}).join('');
+$('live-sel').innerHTML=keys.map(k=>`<option value="${k}">${S[k].label}</option>`).join('');
+$('phases').innerHTML=C.PHASES.map((p,i)=>`<div class="phb" id="ph-${i}"><span class="lbl">${p[0]} PHASE</span><span class="v" id="pht-${i}">${mmss(p[1]*60)}</span><div class="st" id="phs-${i}">NO DATA</div></div>`).join('');
+const EQ=[{n:'blower',t:'BLOWER 1 VFD',c:['START','STOP']},{n:'valve',t:'DECANT VALVE V-103',c:['OPEN','CLOSE']}];
+$('eq').innerHTML=EQ.map(e=>`<div class="box"><div class="row"><div class="row"><div id="ind-${e.n}" style="width:14px;height:14px;background:var(--stop);border:1px solid var(--bd)"></div><b>${e.t}</b></div><div class="tog"><span data-n="${e.n}" data-mode="MAN">MAN</span><span data-n="${e.n}" data-mode="AUTO">AUTO</span></div></div><span class="xs">STATE: <b id="state-${e.n}">--</b></span><div class="row"><button class="btn" style="flex:1" data-n="${e.n}" data-cmd="${e.c[0]}">${e.c[0]}</button><button class="btn" style="flex:1" data-n="${e.n}" data-cmd="${e.c[1]}">${e.c[1]}</button></div></div>`).join('');
+$('v-maint').innerHTML=C.EQUIP.map(e=>`<div class="pn"><div class="pnh"><span class="pt">${e.name}</span><b class="xs" id="ms-${e.id}">--</b></div><div class="pb"><div class="box"><span class="lbl">TOTAL RUN HOURS</span><div class="val"><span class="v" id="mh-${e.id}">--</span><span class="u">HRS</span></div><div class="row xs" style="color:var(--t3)"><span>0</span><span>LIMIT: ${e.limit} HRS</span></div><div class="trk"><div class="fil" id="mb-${e.id}"></div></div></div><button class="btn" data-reset="${e.id}">LOG MAINTENANCE / RESET</button></div></div>`).join('');
+/* ================= CHARTS ================= */
+const TC='#8aa3b2',GC='rgba(255,255,255,.07)';
+const ch={live:new Chart($('c-live'),{type:'line',data:{labels:[],datasets:[{label:'',data:[],borderColor:'#2dd4bf',backgroundColor:'rgba(45,212,191,.12)',fill:true}]},options:{responsive:true,maintainAspectRatio:false,animation:false,elements:{point:{radius:0},line:{borderWidth:2,tension:.25}},plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{ticks:{maxTicksLimit:6,color:TC,font:{size:10}},grid:{color:GC}},y:{ticks:{color:TC},grid:{color:GC}}}}})};
+/* ================= LIVE DATA ================= */
+function paint(k,n){const b=$('bar-'+k),e=$('st-'+k);if(b)b.className='fil'+(n==1?' a':n==2?' w':'');if(e){e.textContent=n==1?'ALARM':n==2?'WARNING':'NORMAL';e.dataset.s=n}}
+function buildTank(){const L=C.LEVEL,y=p=>208-1.96*p,ln=(p,c)=>p==null?'':`<line x1="22" x2="102" y1="${y(p)}" y2="${y(p)}" stroke="${c}" stroke-dasharray="4 3" stroke-width="1.5"/>`;let t='';
+ [0,25,50,75,100].forEach(p=>t+=`<line x1="18" x2="22" y1="${y(p)}" y2="${y(p)}" stroke="#8aa3b2"/><text x="15" y="${y(p)+3}" text-anchor="end" font-size="9" fill="#8aa3b2">${p}</text>`);
+ $('tank').innerHTML=`<svg viewBox="0 0 120 220" width="100%" height="100%"><rect x="22" y="12" width="80" height="196" rx="5" fill="#0a161e" stroke="#3b6078" stroke-width="2"/><rect id="tank-fill" x="24" y="208" width="76" height="0" fill="#38bdf8" fill-opacity=".8"/><rect id="tank-surf" x="24" y="208" width="76" height="2" fill="#bae6fd"/>${t}${ln(L.warnHi,'#f5b942')}${ln(L.warnLo,'#f5b942')}${ln(L.alarmHi,'#ff5d6c')}${ln(L.alarmLo,'#ff5d6c')}</svg>`;$('tank-cap').textContent=L.cap}
+function setLevel(l){const L=C.LEVEL,h=1.96*l;lvBuf.push(l);if(lvBuf.length>30)lvBuf.shift();lvMin=Math.min(lvMin,l);lvMax=Math.max(lvMax,l);
+ $('tank-fill').setAttribute('height',h);$('tank-fill').setAttribute('y',208-h);$('tank-surf').setAttribute('y',208-h);
+ $('tank-lvl').textContent=l.toFixed(1);$('tank-vol').textContent=(l*L.cap/100).toFixed(2);
+ const d=l-lvBuf[0];$('lvl-dir').textContent=lvBuf.length<5?'--':d>.5?'▲ Filling':d<-.5?'▼ Draining':'● Steady';
+ $('lvl-min').textContent=lvMin.toFixed(1)+' %';$('lvl-max').textContent=lvMax.toFixed(1)+' %';evalAlarm('level',l)}
+function onLive(d){
+ if(!d)return;const t=ms(d.ts)||Date.now();lastTs=t;count++;
+ keys.forEach(k=>{const v=parseFloat(d[k]);if(isNaN(v))return;const s=S[k];
+  $('pv-'+k).textContent=fmt(v,s.d);$('bar-'+k).style.width=Math.max(0,Math.min(100,(v-s.min)/(s.max-s.min)*100))+'%';
+  buf[k].push({t,v});if(buf[k].length>600)buf[k].shift();evalAlarm(k,v)});
+ if(d.level!=null&&!isNaN(d.level))setLevel(Math.max(0,Math.min(100,+d.level)));
+ drawLive();
+}
+function drawLive(){const k=$('live-sel').value,b=buf[k].slice(-60),c=ch.live;c.data.labels=b.map(x=>hms(x.t));c.data.datasets[0].data=b.map(x=>x.v);c.data.datasets[0].label=S[k].label;c.update()}
+$('live-sel').onchange=drawLive;
+/* ================= ALARMS ================= */
+function evalAlarm(k,v){
+ const s=k==='level'?C.LEVEL:S[k],pr=lvl[k]||0,dead=(s.max-s.min)*.01,hold=L=>pr&&pr<=L?dead:0;
+ const hi=(x,L)=>x!=null&&v>=x-hold(L),lo=(x,L)=>x!=null&&v<=x+hold(L);let n=0,dir='';
+ if(hi(s.alarmHi,1)){n=1;dir='HIGH'}else if(lo(s.alarmLo,1)){n=1;dir='LOW'}else if(hi(s.warnHi,2)){n=2;dir='HIGH'}else if(lo(s.warnLo,2)){n=2;dir='LOW'}
+ const changed=n!==pr||dir!==dirs[k];lvl[k]=n;dirs[k]=dir;paint(k,n);
+ if(n&&changed)raise(k,s.tag,`${s.name} ${dir==='HIGH'?'High':'Low'} ${n==1?'Alarm':'Warning'}`,n,dir,v);
+ else if(!n&&(pr||(shared[k]&&shared[k].lvl)))clear(k);
+}
+function raise(k,tag,desc,n,dir,v){
+ const rec=()=>({tag,desc,prio:n,ts:Date.now(),val:v==null?null:v,ackBy:null,ackTs:null});
+ if(!db){recs['L'+Date.now()+k]=rec();draw();return}
+ // transaction = only one open dashboard logs each alarm event
+ db.ref(P().als+'/'+k).transaction(c=>c&&c.lvl===n&&c.dir===dir?undefined:{lvl:n,dir,ts:Date.now()},(e,ok)=>{if(!e&&ok)db.ref(P().alm).push(rec())},false);
+}
+function clear(k){if(db)db.ref(P().als+'/'+k).transaction(c=>c&&c.lvl?{lvl:0,dir:'',ts:Date.now()}:undefined,null,false)}
+function ledger(){const q=$('lg-q').value.toLowerCase(),f=$('lg-f').value;return Object.entries(recs).sort((a,b)=>b[1].ts-a[1].ts).filter(([i,r])=>(f==='ALL'||String(r.prio)===f)&&(r.tag+' '+r.desc).toLowerCase().includes(q))}
+function draw(){
+ const un=Object.entries(recs).filter(r=>!r[1].ackTs).sort((a,b)=>a[1].prio-b[1].prio||b[1].ts-a[1].ts),b=$('alm-bn');
+ if(!un.length){b.className='bn ok';b.innerHTML='<b>NO UNACKNOWLEDGED ALARMS</b>'}
+ else{const[id,r]=un[0];b.className='bn a'+r.prio;b.innerHTML=`<div class="row">${ind(r.prio)}<div class="col" style="gap:0;flex:1"><b>${esc(r.desc).toUpperCase()}</b><span class="xs">TAG: ${esc(r.tag)} | UNACKNOWLEDGED${un.length>1?' | +'+(un.length-1)+' MORE':''}</span></div><button class="btn" data-ack="${id}">ACKNOWLEDGE</button></div>`}
+ $('lg-body').innerHTML=ledger().map(([i,r],n)=>`<tr class="${n%2?'alt':''}"><td class="mono">${dts(r.ts)}</td><td><b>${esc(r.tag)}</b></td><td>${esc(r.desc)}</td><td style="text-align:center">${ind(r.prio)}</td><td class="mono">${esc(r.ackBy||'—')}</td><td class="mono">${r.ackTs?dur(r.ackTs-r.ts):'UNACK'}</td></tr>`).join('')||'<tr><td colspan="6">No alarms recorded.</td></tr>';
+}
+$('alm-bn').onclick=e=>{const id=e.target.dataset.ack;if(!id)return;const u={ackBy:op,ackTs:Date.now()};if(db&&!id.startsWith('L'))db.ref(P().alm+'/'+id).update(u);else{Object.assign(recs[id],u);draw()}};
+$('lg-q').oninput=$('lg-f').onchange=draw;
+$('lg-exp').onclick=()=>dl('Alarm_Ledger_Export.csv',[['Date/Time','Tag','Description','Priority','Ack By','Ack Time']].concat(ledger().map(([i,r])=>[dts(r.ts),r.tag,r.desc,'L'+r.prio,r.ackBy||'',r.ackTs?dur(r.ackTs-r.ts):'UNACK'])));
+/* ================= CYCLE + EQUIPMENT CONTROL ================= */
+function renderPhases(){
+ const c=st.cycle||{},cur=C.PHASES.findIndex(p=>p[0]===String(c.phase||'').toUpperCase()),end=c.endsAt?ms(c.endsAt):(c.remainingSec!=null&&c._rx?c._rx+c.remainingSec*1000:0);
+ C.PHASES.forEach((p,i)=>{const on=i===cur;$('ph-'+i).className='phb'+(on?' on':'');
+  $('phs-'+i).textContent=cur<0?'NO DATA':on?'ACTIVE':i<cur?'COMPLETED':'PENDING';
+  $('pht-'+i).textContent=on&&end?mmss((end-Date.now())/1000):mmss(p[1]*60)});
+ $('cyc-txt').textContent=cur<0?'NO CYCLE DATA':'RUNNING: '+C.PHASES[cur][0];
+}
+function onSt(v){st=v||{};if(st.cycle&&st.cycle.remainingSec!=null)st.cycle._rx=Date.now();renderPhases();renderCtl()}
+function renderCtl(){
+ EQ.forEach(e=>{const c=ctl[e.n]||{},f=st[e.n],auto=(c.mode||'AUTO')==='AUTO',on=f!=null?['ON','OPEN','RUNNING'].includes(String(f).toUpperCase()):c.cmd===e.c[0];
+  $('ind-'+e.n).style.background=on?'var(--ok)':'var(--stop)';$('state-'+e.n).textContent=f!=null?String(f).toUpperCase():(c.cmd||'--');
+  document.querySelectorAll(`[data-n="${e.n}"][data-mode]`).forEach(x=>x.classList.toggle('sel',x.dataset.mode===(auto?'AUTO':'MAN')));
+  document.querySelectorAll(`[data-n="${e.n}"][data-cmd]`).forEach(x=>{x.disabled=auto;x.classList.toggle('p',c.cmd===x.dataset.cmd)})});
+ const h=ctl.halt&&ctl.halt.active;$('halt').textContent=h?'RESET HALT':'SYSTEM HALT';$('halt').classList.toggle('on',!!h);
+}
+function onCtl(v){ctl=v||{};renderCtl()}
+function send(path,p){if(!db)return alert('Database connection unavailable.');db.ref(P().ctl+'/'+path).update(Object.assign(p,{by:op,ts:Date.now()}))}
+$('eq').onclick=e=>{const t=e.target.closest('[data-n]');if(!t||t.disabled)return;const p={};if(t.dataset.mode)p.mode=t.dataset.mode;if(t.dataset.cmd)p.cmd=t.dataset.cmd;send(t.dataset.n,p)};
+$('halt').onclick=()=>{const h=ctl.halt&&ctl.halt.active;if(confirm(h?'Release the system halt?':'Send HALT to all outputs? (Software halt only — keep a hardwired E-stop on the rig.)'))send('halt',{active:!h})};
+/* ================= MAINTENANCE ================= */
+function onMnt(v){mnt=v||{};C.EQUIP.forEach(e=>{const d=mnt[e.id]||{},h=d.total==null?null:Math.max(0,d.total-(d.base||0)),p=h==null?0:h/e.limit*100,b=$('mb-'+e.id),vv=$('mh-'+e.id);
+ vv.textContent=h==null?'--':Math.round(h);vv.style.color=p>=100?'var(--a1)':p>=90?'var(--a2)':'var(--t1)';b.style.width=Math.min(100,p)+'%';b.className='fil'+(p>=100?' a':p>=90?' w':'');
+ $('ms-'+e.id).textContent=p>=100?'SERVICE OVERDUE':p>=90?'SERVICE DUE SOON':String(d.status||'--').toUpperCase()})}
+$('v-maint').onclick=e=>{const id=e.target.dataset.reset;if(!id||!db)return;const d=mnt[id]||{};if(d.total==null)return alert('No run-hour data received for this equipment yet.');
+ if(confirm('Confirm maintenance log for '+id+'? Run hours will restart from zero.'))db.ref(P().mnt+'/'+id).update({base:d.total,lastReset:Date.now(),resetBy:op})};
+/* ================= REPORTS ================= */
+$('btn-shift').onclick=()=>dl('Operator_Shift_Report.csv',[['SBR OPERATOR SHIFT REPORT'],['Generated',new Date().toISOString()],['Operator',op],['Device',dev],[],['Parameter','Value','Unit','Status']].concat(keys.map(k=>[S[k].name,$('pv-'+k).textContent,S[k].unit,['NORMAL','ALARM','WARNING'][lvl[k]||0]]).concat([['Reactor level',$('tank-lvl').textContent,'%',['NORMAL','ALARM','WARNING'][lvl.level||0]]])));
+/* ================= LINK STATUS TICK ================= */
+setInterval(()=>{const a=lastTs?Date.now()-lastTs:Infinity,s=a<C.STALE?'ONLINE':a<C.OFFLINE?'STALE':lastTs?'OFFLINE':'NO DATA';
+ $('lk-txt').textContent=s;$('lk-dot').className=s==='ONLINE'?'':s==='STALE'?'warn':'bad';$('d-lnk').textContent=s;$('d-dev').textContent=dev;$('dev-id').textContent=dev;$('d-n').textContent=count;
+ $('h-age').textContent=lastTs?Math.round(a/1000)+' s ago':'--';$('d-last').textContent=lastTs?dts(lastTs):'--';
+ if(s==='OFFLINE'&&!offAl){offAl=true;raise('comm','SYS-COM-001','ESP32 Telemetry Comm Loss',1,'LOSS',null)}else if(s==='ONLINE'&&offAl){offAl=false;clear('comm')}
+ renderPhases()},1000);
+/* ================= FIREBASE BINDINGS ================= */
+function bind(){
+ subs.forEach(r=>r.off());subs=[];if(!db)return;const p=P();
+ const on=(path,cb,q)=>{const r=q?q(db.ref(path)):db.ref(path);r.on('value',s=>cb(s.val()),e=>{$('lk-txt').textContent='DB ERROR: '+e.code;$('lk-dot').className='bad'});subs.push(r)};
+ on(p.live,onLive);on(p.st,onSt);on(p.ctl,onCtl);on(p.mnt,onMnt);on(p.als,v=>shared=v||{});on(p.alm,v=>{recs=v||{};draw()},r=>r.limitToLast(500));
+}
+function start(){if(started)return;started=true;bind();draw();renderCtl()}
+if(C.LOGIN&&auth){
+ if(location.protocol==='file:')auth.setPersistence(firebase.auth.Auth.Persistence.NONE).catch(()=>{});
+ auth.onAuthStateChanged(u=>{$('m-login').style.display=u?'none':'flex';$('logout').style.display=u?'':'none';
+  if(u){op=(u.email||'OP').split('@')[0].toUpperCase();$('op').textContent=op;start()}});
+ $('lf').onsubmit=e=>{e.preventDefault();$('lg-err').textContent='';auth.signInWithEmailAndPassword($('lg-e').value,$('lg-p').value).catch(x=>$('lg-err').textContent=x.message)};
+ $('logout').onclick=()=>auth.signOut().then(()=>location.reload());
+}else start();
+/* ================= ESP32 PAIRING ================= */
+$('btn-pair').onclick=()=>{$('p-id').value='';$('p-pin').value='';$('m-pair').style.display='flex'};
+$('p-cancel').onclick=()=>$('m-pair').style.display='none';
+$('p-ok').onclick=()=>{const id=$('p-id').value.trim(),pin=$('p-pin').value.trim();if(!id||!pin)return alert('Device ID and PIN are required.');if(!db)return alert('Database connection unavailable.');
+ const b=$('p-ok'),t=b.textContent;b.textContent='AUTHENTICATING...';b.disabled=true;
+ db.ref('authorized_hardware/'+id).once('value').then(s=>{if(!(s.exists()&&String(s.val().pin)===pin))throw 0;
+  return db.ref('authorized_hardware/'+id).update({status:'paired',pairedAt:Date.now()}).then(()=>{dev=id;localStorage.setItem('sbrDev',id);$('m-pair').style.display='none';
+   $('btn-pair').textContent='ESP32 CONNECTED: '+id;buf=keys.reduce((o,k)=>(o[k]=[],o),{});lastTs=0;count=0;bind()})})
+ .catch(()=>alert('Authentication failed: invalid Device ID or PIN.')).finally(()=>{b.textContent=t;b.disabled=false})};
+/* ================= TABS ================= */
+$('nav').onclick=e=>{const v=e.target.dataset.v;if(!v)return;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v));document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));ch.live.resize()};
+buildTank();
+})();
+</script>
+</body>
+</html>
